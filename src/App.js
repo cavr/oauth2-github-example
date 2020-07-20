@@ -4,8 +4,8 @@ import './App.css';
 import ClientOAuth2 from 'client-oauth2';
 
 const githubAuth = new ClientOAuth2({
-    clientId: '',
-    clientSecret: '',
+    clientId: process.env.REACT_APP_GITHUB_CLIENT_ID,
+    clientSecret: process.env.REACT_APP_GITHUB_CLIENT_SECRET,
     accessTokenUri: 'https://cors-anywhere.herokuapp.com/https://github.com/login/oauth/access_token',
     authorizationUri: 'https://github.com/login/oauth/authorize',
     redirectUri: 'http://localhost:3000/',
@@ -13,34 +13,28 @@ const githubAuth = new ClientOAuth2({
 });
 
 function App() {
-
     const [data, setData] = useState({});
 
+    window.oauth2Callback = async function (uri) {
+        const user = await githubAuth.code.getToken(uri);
 
-    window.oauth2Callback = function (uri) {
-        debugger;
-        githubAuth.code.getToken(uri)
-            .then(function (user) {
-                debugger;
-                console.log(user) //=> { accessToken: '...', tokenType: 'bearer', ... }
+        const result = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `${user.tokenType} ${user.accessToken}`
+            }
+        });
 
-                fetch('https://api.github.com/user', {
-                    headers: {
-                        'Authorization': `${user.tokenType} ${user.accessToken}`
-                    }
-                }).then(result => result.json()).then((data)=>{
-                        window.opener.updateInfo(data);
-                        window.close();
-                });
-            })
+        const data = await result.json();
+
+        window.opener.updateInfo(data);
+
+        window.close();
     };
 
     window.updateInfo = ((info) => {
         setData(info);
 
     });
-
-// Open the page in a new window, then redirect back to a page that calls our global `oauth2Callback` function.
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -58,17 +52,6 @@ function App() {
         <div className="App">
             <header className="App-header">
                 <img src={logo} className="App-logo" alt="logo"/>
-                <p>
-                    Edit <code>src/App.js</code> and save to reload.
-                </p>
-                <a
-                    className="App-link"
-                    href="https://reactjs.org"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    Learn React
-                </a>
                 <pre>{JSON.stringify(data, null, 2)}</pre>
                 <button onClick={handleClick}>Login</button>
             </header>
